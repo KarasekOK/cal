@@ -61,15 +61,13 @@ clearHistoryBtn.addEventListener("click", () => {
 // --- jednoduchý parser s podporou +, -, *, /, ^ a záporných čísel --- 
 
 function evaluateExpression(expr) {
-  expr = expr.replace(/\s+/g, ""); // odstranění mezer
+  expr = expr.replace(/\s+/g, ""); 
   if (expr === "") throw new Error("Empty expression");
 
-  // Pokud je celé číslo (nebo desetinné), rovnou vracíme číslo
-  if (!isNaN(expr)) {
-    return parseFloat(expr);
+  function roundResult(num) {
+    return Math.round((num + Number.EPSILON) * 1e10) / 1e10;
   }
 
-  // Pomocná funkce pro nalezení hlavního operátoru podle priority
   function findMainOperator(expression, operators) {
     let bracketLevel = 0;
     for (let i = expression.length - 1; i >= 0; i--) {
@@ -77,7 +75,6 @@ function evaluateExpression(expr) {
       if (ch === ")") bracketLevel++;
       else if (ch === "(") bracketLevel--;
       else if (bracketLevel === 0 && operators.includes(ch)) {
-        // zvláštní případ: pokud je "-" a je to unární mínus (např. na začátku nebo po operátoru), ignorujeme
         if (ch === "-" && (i === 0 || "+-*/^(".includes(expression[i - 1]))) {
           continue;
         }
@@ -87,9 +84,7 @@ function evaluateExpression(expr) {
     return -1;
   }
 
-  // Vyhodnocení závorek
   if (expr.startsWith("(") && expr.endsWith(")")) {
-    // zkusíme odstranit vnější závorky, pokud jsou správně párové
     let level = 0;
     let balanced = true;
     for (let i = 0; i < expr.length; i++) {
@@ -102,41 +97,37 @@ function evaluateExpression(expr) {
     }
   }
 
-  // 1) vyhodnocení sčítání a odčítání (nejnižší priorita)
   let index = findMainOperator(expr, "+-");
   if (index !== -1) {
     const left = expr.substring(0, index);
     const right = expr.substring(index + 1);
     const op = expr[index];
-    if (op === "+") return evaluateExpression(left) + evaluateExpression(right);
-    else if (op === "-") return evaluateExpression(left) - evaluateExpression(right);
+    if (op === "+") return roundResult(evaluateExpression(left) + evaluateExpression(right));
+    else if (op === "-") return roundResult(evaluateExpression(left) - evaluateExpression(right));
   }
 
-  // 2) vyhodnocení násobení a dělení
   index = findMainOperator(expr, "*/");
   if (index !== -1) {
     const left = expr.substring(0, index);
     const right = expr.substring(index + 1);
     const op = expr[index];
-    if (op === "*") return evaluateExpression(left) * evaluateExpression(right);
-    else if (op === "/") return evaluateExpression(left) / evaluateExpression(right);
+    if (op === "*") return roundResult(evaluateExpression(left) * evaluateExpression(right));
+    else if (op === "/") return roundResult(evaluateExpression(left) / evaluateExpression(right));
   }
 
-  // 3) vyhodnocení exponentu ^ (pravá asociativita)
   index = findMainOperator(expr, "^");
   if (index !== -1) {
     const left = expr.substring(0, index);
     const right = expr.substring(index + 1);
-    return Math.pow(evaluateExpression(left), evaluateExpression(right));
+    return roundResult(Math.pow(evaluateExpression(left), evaluateExpression(right)));
   }
 
-  // Pokud to není žádná operace, musí to být číslo (případně unární minus)
   if (expr[0] === "-") {
-    return -evaluateExpression(expr.substring(1));
+    return roundResult(-evaluateExpression(expr.substring(1)));
   }
 
   if (!isNaN(expr)) {
-    return parseFloat(expr);
+    return roundResult(parseFloat(expr));
   }
 
   throw new Error("Invalid expression");
